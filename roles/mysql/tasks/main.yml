@@ -1,0 +1,68 @@
+---
+
+- name: Copy MariaDB Repo to host
+  copy: src=roles/mysql/files/maria.repo dest=/etc/yum.repos.d/maria.repo owner=root group=root mode="u=rw,g=r,o=r"
+
+- name: install MySQL packages
+  yum: pkg={{ item }} state=installed update_cache=yes
+  with_items: "{{ mysql_packages }}"
+  register: MySQLinstalled
+  notify:
+      - start MySQL
+
+#Package needed to exectud the bellow command to secure the MariaDB
+- name: Adds Python MySQL
+  yum: name=MySQL-python state=present
+
+- name: Install mysql-python
+  pip: name=MySQL-python
+  
+- name: MySQL instalation failed
+  when: MySQLinstalled|failed
+  fail: msg="MySQL instalation failed, please check logs"
+
+- name: enable MySQL service
+  service: name=mysql enabled=yes
+
+- name: start MySQL
+  service: name=mysql state=started
+
+- name: Remove anonymous users
+  command: 'mysql -ne "{{ item }}"'
+  with_items:
+    - DELETE FROM mysql.user WHERE User=''
+  changed_when: False
+  ignore_errors: True
+
+- name: Disallow root login remotely
+  command: 'mysql -ne "{{ item }}"'
+  with_items:
+    - DELETE FROM mysql.user WHERE User='root' AND Host NOT IN ('localhost', '127.0.0.1', '::1')
+  ignore_errors: True
+
+- name: Remove test database and access to it
+  command: 'mysql -ne "{{ item }}"'
+  with_items:
+    - DROP DATABASE test
+    - DELETE FROM mysql.db WHERE Db='test' OR Db='test\\_%'
+  ignore_errors: True
+
+- name: Change root user password on first run
+  mysql_user: login_user=root
+              login_password=''
+              name="{{ mysql_root_user }}"
+              password="{{ mysql_root_password }}"
+              priv=*.*:ALL,GRANT
+              host={{ item }}
+  with_items:
+    - 127.0.0.1
+    - ::1
+    - localhost
+  ignore_errors: True
+
+- name: Reload privilege tables
+  command: 'mysql -u "{{ mysql_root_user }}" -p"{{ mysql_root_password }}" -ne "{{ item }}"'
+  with_items:
+    - FLUSH PRIVILEGES
+  ignore_errors: True
+

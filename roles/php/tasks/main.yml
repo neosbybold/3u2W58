@@ -1,0 +1,13 @@
+---
+
+- name: install php packages
+  yum: pkg={{ item }} state=latest
+  with_items: "{{ php_packages }}"
+  register: phpinstalled
+  notify:
+    - start php56-fpm
+
+- name: Copy www.conf to host
+  copy: src=roles/php/files/www.conf dest=/etc/php-fpm-5.6.d/www.conf owner=root group=root mode="u=rw,g=r,o=r"
+
+

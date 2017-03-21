@@ -1,0 +1,13 @@
+---
+
+php_packages:
+  - php56  
+  - php56-mysqlnd 
+  - php56-xml 
+  - php56-gd 
+  - php56-common 
+  - php56-jsonc 
+  - php56-pecl-apcu 
+  - php56-pecl-ssh2 
+  - php56-fpm 
+  - php56-mbstring

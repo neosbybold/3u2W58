@@ -1,0 +1,68 @@
+---
+
+# Where to get Certbot.
+certbot_repo: https://github.com/certbot/certbot.git
+certbot_version: master
+certbot_keep_updated: yes
+
+# Where to put Certbot.
+certbot_dir: /opt/certbot
+
+# How to keep Certbot certs up to date.
+certbot_auto_renew: true
+certbot_auto_renew_user: root
+certbot_auto_renew_hour: 3
+certbot_auto_renew_minute: 30
+
+#letsencrypt
+webroot_dir: "xxxx.yyyyy.com"                     
+letsencrypt_webroot_path: "/var/www/{{ webroot_dir }}"
+letsencrypt_email: suporte@neosbybold.com
+
+#nginx
+nginx_worker_processes: "{{ ansible_processor_cores }}"
+domain: xxxxx.yyyyyy.com
+domain_www: www.xxxxx.yyyyyy.com                   
+resolver: 8.8.8.8
+
+#mysql
+mysql_root_user: root
+mysql_root_password: "xxxyyyy"
+mysql_packages:
+  - MariaDB-server
+  - MariaDB-client
+  - MariaDB-devel
+
+
+#drupal
+drupal_db: "drupal"
+drupal_user: "drupaluser"
+drupal_password: "xxxxyyyy"
+drupal_docroot: "/var/www"
+drupal_version: "drupal-7.54"
+drupal_dir: "{{ domain }}"
+drupal_absolute_docroot: "{{ drupal_docroot }}/{{ domain }}"
+site_mail: "noreply@xxxxyyyy.com"
+site_name: "{{ domain }}"
+account_mail: "xxxx@yyyy.com"
+user: "admin"
+password: "xxxxx"
+
+#civiCRM
+rootdir: "{{ domain }}"
+civicrm_db: "civicrm"
+civicrm_user: "xxxxx"
+civicrm_password: "yyyyy"
+civicrm_url: "https://download.civicrm.org/civicrm-4.7.16-drupal.tar.gz"
+civicrm_destination: "~/civiCRM.tar.gz"
+
+#backup  -- Backups files to AWS S3 --
+backup_name: "{{ domain }}"
+backup_tmp_dest: "/tmp/dump"
+cronjob_name: "drupal_backup"
+cronjob_schedule_minute: "0"
+cronjob_schedule_hour: "4"
+cronjob_schedule_day: "*"
+cronjob_schedule_month: "*"
+cronjob_schedule_weekday: "*"
+

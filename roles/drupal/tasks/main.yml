@@ -1,0 +1,68 @@
+---
+
+- name: Create drupal database 
+  mysql_db:
+    name: "{{ drupal_db }}"
+    login_user: "{{ mysql_root_user }}"
+    login_password: "{{ mysql_root_password }}"
+    state: present
+  register: dbcreated
+
+- name: Create a user for drupal
+  when: dbcreated|success
+  mysql_user:
+    name: "{{ drupal_user }}"
+    login_user: "{{ mysql_root_user }}"
+    login_password: "{{ mysql_root_password }}"
+    password: "{{ drupal_password }}"
+    priv: '{{ drupal_db }}.*:ALL'
+    state: present
+  register: usercreated
+
+- name: Failed to create drupal db 
+  when: dbcreated|failed
+  fail: msg="failed to create '{{ drupal_db }}' database"
+
+- name: Reload privilege tables
+  when: usercreated|success
+  command: 'mysql -u "{{ mysql_root_user }}" -p"{{ mysql_root_password }}" -ne "{{ item }}"'
+  with_items:
+    - FLUSH PRIVILEGES
+
+- name: Failed to create drupal user
+  when: usercreated|failed
+  fail: msg="Failed to create '{{ drupal_user }}' user"
+
+- name: Ensure document root exists
+  file: dest={{ drupal_docroot }} mode=777 state=directory owner=nginx group=nginx recurse=yes
+  register: docrootexist
+
+- name: Download {{ drupal_version }}
+  when: docrootexist|success
+  command: "drush dl '{{ drupal_version }}' --destination='{{ drupal_docroot }}' --drupal-project-rename='{{ drupal_dir }}' -y"
+  register: drupaldownloaded
+
+- name: Setup {{ drupal_version }}
+  when: drupaldownloaded|success
+  command: "drush site-install --yes standard --root='{{ drupal_absolute_docroot }}' --account-name='{{ user }}' --account-pass='{{ password }}' --db-url=mysql://'{{ drupal_user }}':'{{ drupal_password }}'@localhost/'{{ drupal_db }}' --account-mail='{{ account_mail }}' --site-name='{{ site_name }}' --site-mail='{{ site_mail }}'"
+  register: drupalinstalled
+
+- name: Setup views3 module
+  when: drupalinstalled|success
+  command: "drush pm-enable --root='{{ drupal_absolute_docroot }}' --yes admin ctools views views_ui"
+  register: views3installed
+  failed_when: "views3installed.rc != 1"
+
+- name: Download {{ drupal_version }} failed
+  when: drupaldownloaded|failed
+  fail: msg="couldn't Download '{{ drupal_version }}'" 
+
+- name: Setup {{ drupal_version }} failed
+  when: drupalinstalled|failed
+  fail: msg="couldn't install '{{ drupal_version }}'"
+
+- name: Ensure private directory exists
+  file: dest={{ drupal_absolute_docroot }}/sites/default/files/private mode=770 state=directory owner=nginx group=nginx recurse=yes
+
+# set dir_permissions
+- include: roles/permissions/tasks/main.yml

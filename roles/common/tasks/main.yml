@@ -1,0 +1,12 @@
+---
+- name: installs common utilities
+  yum: pkg={{ item }} state=latest update_cache=true
+  with_items:
+      - mlocate
+      - htop
+      - git
+      - gcc
+      - openssl-devel
+
+- name: upgrade all packages
+  yum: name='*' state=latest

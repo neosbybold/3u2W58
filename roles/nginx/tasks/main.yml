@@ -1,0 +1,26 @@
+---
+
+- name: Install nginx
+  yum: name=nginx state=latest update_cache=true
+  register: nginxinstalled
+  notify:
+      - start nginx
+
+- name: nginx instalation failed
+  when: nginxinstalled|failed
+  fail: msg="nginx instalation failed, please check logs"
+
+- name: Copy nginx.conf to /etc/nginx/nginx.conf
+  copy: src=roles/nginx/files/nginx.conf dest=/etc/nginx/nginx.conf owner=nginx group=nginx mode="u=rw,g=r,o=r"
+
+- name: create document root
+  when: nginxinstalled|success
+  file: dest=/var/www/{{ domain }} mode=755 state=directory owner=nginx group=nginx
+
+- name: document root permissions
+  when: nginxinstalled|success
+  file: dest=/var/www/{{ domain }} mode=755 state=directory owner=nginx group=nginx recurse=yes
+
+- name: enable nginx service
+  service: name=nginx enabled=yes
+

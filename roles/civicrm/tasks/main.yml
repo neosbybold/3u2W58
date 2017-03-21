@@ -1,0 +1,87 @@
+---
+
+- name: Create civicrm database 
+  mysql_db:
+    name: "{{ civicrm_db }}"
+    login_user: "{{ mysql_root_user }}"
+    login_password: "{{ mysql_root_password }}"
+    state: present
+  register: dbcreated
+  
+- name: Create a user for civicrm && grant permissions
+  when: dbcreated|success
+  mysql_user:
+    name: "{{ civicrm_user }}"
+    password: "{{ civicrm_password }}"
+    priv: '{{ civicrm_db }}.*:ALL'
+    login_user: "{{ mysql_root_user }}"
+    login_password: "{{ mysql_root_password }}"
+    state: present
+  register: usercreated
+
+#HACK
+- name: Reload privilege tables
+  when: usercreated|success
+  command: 'mysql -u "{{ mysql_root_user }}" -p"{{ mysql_root_password }}" -ne "{{ item }}"'
+  no_log: True
+  with_items:
+    - GRANT SELECT ON {{ civicrm_db }}.* TO {{ drupal_user }}@localhost IDENTIFIED BY '{{ drupal_password }}'
+
+- name: Reload privilege tables
+  when: usercreated|success
+  command: 'mysql -u "{{ mysql_root_user }}" -p"{{ mysql_root_password }}" -ne "{{ item }}"'
+  with_items:
+    - FLUSH PRIVILEGES
+
+- name: Failed to create civicrm db 
+  when: dbcreated|failed
+  fail: msg="failed to create '{{ civicrm_db }}' database"
+
+- name: copy civicrm.drush.inc
+  copy: src=roles/civicrm/files/civicrm.drush.inc dest=~/.drush/civicrm.drush.inc mode=640
+
+- name: Drush clear-cache
+  command: drush cc drush
+
+- name: Download CiviCRM for "{{ drupal_version }}"
+  get_url:
+    url: "{{ civicrm_url }}"
+    dest: "{{ civicrm_destination }}"
+    owner: "root"
+    mode: 0740
+
+- name: Install CiviCRM
+  command: drush civicrm-install --dbhost={{ mysql_bind_address }} --dbname={{ civicrm_db }} --dbuser={{ civicrm_user }} --dbpass={{ civicrm_password }} --destination=/sites/all/modules --tarfile={{ civicrm_destination }} --root={{ drupal_absolute_docroot }}
+
+#HACK
+- name: Delete civicrm.drush.inc from drupal instalation
+  file: path={{ drupal_absolute_docroot }}/sites/all/modules/civicrm/drupal/drush/civicrm.drush.inc state=absent
+
+- name: Enable CiviCRM
+  command: drush pm-enable civicrm --root={{ drupal_absolute_docroot }}
+
+#copy civicrm params
+- name: Copy settings.php
+  copy: src=files/settings.php dest=/tmp mode=750 owner=root   
+  tags:
+    - edit
+
+- name: Get settings.php parameters into a var (data)
+  shell: cat /tmp/settings.php
+  register: data
+  tags:
+    - edit
+
+- name: Insert civicrm parameters (views3 integration)
+  blockinfile:
+    dest: "{{ drupal_absolute_docroot }}/sites/default/settings.php"
+    marker: "# Custom configuration"
+    insertafter: EOF
+    block: |
+     {{ data.stdout }} 
+  tags:
+    - edit
+
+
+# set dir_permissions
+- include: roles/permissions/tasks/main.yml

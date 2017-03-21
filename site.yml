@@ -1,0 +1,17 @@
+---
+
+ - hosts: civicrm
+   become: yes
+   user: ec2-user
+   
+   roles:
+    - common
+    - certbot
+    - nginx
+    - certbot
+    - mysql
+    - php
+    - drush
+    - drupal
+    - civicrm
+    - backup
